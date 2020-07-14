@@ -1,0 +1,87 @@
+# This workflow will deploy to Google Cloud Functions
+#
+# To configure this workflow, set up the following secrets in your workspace
+#
+#  * `GITHUB_APP_IDENTIFIER` - GitHub App identifier
+#  * `GITHUB_APP_PRIVATE_KEY` - GitHub App private key
+#  * `GOOGLE_SERVICE_ACCOUNT_EMAIL` - Google service account email
+#  * `GOOGLE_APPLICATION_CREDENTIALS` - Google service account private key
+#  * `GITHUB_WEBHOOK_SECRET` - GitHub webhook secret to confirm that webhooks come from GitHub
+#  * `GREENHOUSE_SECRET_KEY` - Greenhouse webhook secret to confirm that webhooks come from Greenhouse
+
+name: Deploy
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build-deploy:
+    name: google
+    runs-on: ubuntu-latest
+    env:
+      SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+      SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      GH_APP_SECRET_KEY: ${{ secrets.GH_APP_SECRET_KEY }}
+      GH_APP_IDENTIFIER: ${{ secrets.GH_APP_IDENTIFIER }}
+      GH_WEBHOOK_SECRET: ${{ secrets.GH_WEBHOOK_SECRET }}
+      SENTRY_WEBPACK_WEBHOOK_SECRET: ${{ secrets.SENTRY_WEBPACK_WEBHOOK_SECRET }}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Setup node
+      uses: actions/setup-node@v1
+      with:
+        node-version: '12'
+
+    - name: yarn install
+      run: |
+        echo "::add-path::$(yarn global bin)"
+        yarn install --frozen-lockfile
+        yarn global add @sentry/cli
+
+    - name: test
+      run: yarn test
+
+    - name: Get version
+      id: get-version
+      run: echo "::set-output name=version::$(sentry-cli releases propose-version)"
+
+    # Build ts
+    - name: Build
+      run: |
+        yarn build
+
+    # Setup gcloud CLI
+    - name: Setup gcloud CLI
+      uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
+      with:
+        version: '275.0.0'
+        service_account_email: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_EMAIL }}
+        service_account_key: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+
+    # Deploy to Google Cloud Functions
+    - name: Deploy
+      id: deploy
+      env:
+        VERSION: ${{ steps.get-version.outputs.version }}
+      run: |
+        echo "::set-output name=deploy-start::$(date +%s)"
+        bin/deploy.sh
+
+    - name: Sentry Release
+      env:
+        VERSION: ${{ steps.get-version.outputs.version }}
+        DEPLOY_START: ${{ steps.deploy.outputs.deploy-start }}
+      run: |
+        echo "$VERSION"
+        now=$(date +%s)
+        sentry-cli releases new "$VERSION"
+        sentry-cli releases set-commits "$VERSION" --auto
+        sentry-cli releases files "$VERSION" upload-sourcemaps './lib'
+        sentry-cli releases deploys "$VERSION" new -e production -t $((now-DEPLOY_START))
+        sentry-cli releases finalize "$VERSION"
