@@ -29,8 +29,8 @@ jobs:
     - name: jest
       run: yarn jest
 
-    - name: eslint
-      uses: getsentry/action-eslint@v1
+    - name: lint
+      run: yarn lint
 
     - name: tsc
       run: yarn tsc
