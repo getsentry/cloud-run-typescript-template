@@ -2,12 +2,11 @@
 #
 # To configure this workflow, set up the following secrets in your workspace
 #
-#  * `GITHUB_APP_IDENTIFIER` - GitHub App identifier
-#  * `GITHUB_APP_PRIVATE_KEY` - GitHub App private key
+#  * `GH_APP_IDENTIFIER` - GitHub App identifier
+#  * `GH_APP_PRIVATE_KEY` - GitHub App private key
 #  * `GOOGLE_SERVICE_ACCOUNT_EMAIL` - Google service account email
 #  * `GOOGLE_APPLICATION_CREDENTIALS` - Google service account private key
-#  * `GITHUB_WEBHOOK_SECRET` - GitHub webhook secret to confirm that webhooks come from GitHub
-#  * `GREENHOUSE_SECRET_KEY` - Greenhouse webhook secret to confirm that webhooks come from Greenhouse
+#  * `GH_WEBHOOK_SECRET` - GitHub webhook secret to confirm that webhooks come from GitHub
 
 name: Deploy
 
